@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wonder Jar</title>
+<meta name="description" content="A family question game for kids 3 to 10. Press the button, get a fun question. No right or wrong answers!">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AB%99%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #2b2a4c;
+    --ink-soft: #5b5a80;
+    --paper: #ffffff;
+    --bg1: #fff4d6;
+    --bg2: #ffd9ec;
+    --bg3: #d8ecff;
+    --brand1: #7048e8;
+    --brand2: #d6336c;
+    --c: #845ef7; /* current category color */
+    --radius: 28px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "Nunito", "Trebuchet MS", "Comic Sans MS", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, var(--bg1), var(--bg2) 55%, var(--bg3));
+    background-attachment: fixed;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 16px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 100vh;
+  }
+
+  /* header */
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: clamp(1.6rem, 5vw, 2.3rem); letter-spacing: .01em; }
+  h1 span { display: inline-block; animation: wiggle 4s ease-in-out infinite; transform-origin: 50% 80%; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    font: inherit; font-weight: 800; font-size: 1rem;
+    border: 3px solid var(--ink); background: var(--paper); color: var(--ink);
+    border-radius: 999px; padding: 8px 16px; cursor: pointer; min-height: 44px;
+    box-shadow: 0 4px 0 var(--ink);
+    transition: transform .08s, box-shadow .08s;
+  }
+  .pill:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  .pill[aria-pressed="true"] { background: #ffe066; }
+  :focus-visible { outline: 4px solid #1c7ed6; outline-offset: 3px; }
+
+  /* controls */
+  .opts { background: rgba(255, 255, 255, .7); border: 3px solid var(--ink); border-radius: 22px; padding: 4px 14px 14px; }
+  .opts summary { cursor: pointer; font-weight: 900; font-size: 1.1rem; padding: 10px 0; min-height: 44px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .opts summary small { font-weight: 700; color: var(--ink-soft); font-size: .95rem; }
+  .opts section + section { margin-top: 14px; }
+  .group-label { font-weight: 800; font-size: .9rem; color: var(--ink-soft); margin: 0 0 6px 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit; font-weight: 800; font-size: 1rem;
+    --cc: var(--c);
+    border: 3px solid var(--cc);
+    background: color-mix(in srgb, var(--cc) 12%, white);
+    color: var(--ink);
+    border-radius: 999px; padding: 6px 14px; cursor: pointer; min-height: 44px;
+    transition: transform .1s, background .1s;
+  }
+  .chip:hover { transform: translateY(-2px); }
+  .chip[aria-pressed="true"] { background: var(--cc); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .chip.light[aria-pressed="true"] { color: var(--ink); text-shadow: none; }
+  .seg { display: inline-flex; border: 3px solid var(--ink); border-radius: 24px; overflow: hidden; background: var(--paper); flex-wrap: wrap; }
+  .seg button {
+    font: inherit; font-weight: 800; font-size: 1rem; border: 0; background: transparent; color: var(--ink);
+    padding: 8px 16px; cursor: pointer; min-height: 44px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+
+  /* card */
+  .stage { flex: 1; display: flex; flex-direction: column; gap: 18px; justify-content: center; }
+  .card {
+    background: var(--paper);
+    border: 5px solid var(--c);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 0 color-mix(in srgb, var(--c) 55%, #000 0%), 0 24px 40px rgba(60, 40, 120, .15);
+    padding: 22px 20px 26px;
+    text-align: center;
+    min-height: 300px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    position: relative;
+  }
+  .card.pop { animation: pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 900; font-size: 1.05rem; letter-spacing: .02em;
+    background: color-mix(in srgb, var(--c) 22%, white);
+    border: 3px solid var(--c); border-radius: 999px; padding: 4px 16px 4px 10px;
+  }
+  .badge .emo { font-size: 1.6rem; line-height: 1; }
+  .turn {
+    font-weight: 900; font-size: 1.25rem; color: var(--brand2); min-height: 1.5em;
+  }
+  .question {
+    margin: 0; font-weight: 800;
+    font-size: clamp(1.9rem, 6vw, 3.1rem);
+    line-height: 1.4; max-width: 24ch;
+    text-wrap: balance;
+  }
+  .question.small { font-size: clamp(1.6rem, 5vw, 2.5rem); max-width: 30ch; }
+  .w { display: inline-block; padding: 0 .04em; border-radius: 10px; cursor: pointer; transition: background .12s; }
+  .w:hover { background: color-mix(in srgb, var(--c) 18%, white); }
+  .w.on { background: #ffe066; transform: scale(1.06); }
+  .hint { color: var(--ink-soft); font-weight: 700; font-size: .95rem; margin: 0; }
+  .answer-wrap { min-height: 52px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .answer {
+    background: #e7f5ff; border: 3px dashed #1c7ed6; border-radius: 18px;
+    padding: 8px 18px; font-weight: 800; font-size: 1.25rem;
+  }
+  .answer[hidden] { display: none; }
+  .ghost {
+    font: inherit; font-weight: 800; font-size: .95rem; color: var(--ink-soft);
+    background: transparent; border: 2px dashed var(--ink-soft); border-radius: 999px;
+    padding: 6px 14px; cursor: pointer; min-height: 40px;
+  }
+
+  /* actions */
+  .actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .big {
+    font: inherit; font-weight: 900; font-size: clamp(1.5rem, 5vw, 2.1rem);
+    color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .25);
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    border: 0; border-radius: 999px; padding: 18px 44px; cursor: pointer; min-height: 72px;
+    box-shadow: 0 8px 0 #3b1d9e, 0 16px 28px rgba(112, 72, 232, .35);
+    transition: transform .08s, box-shadow .08s;
+    width: min(100%, 440px);
+  }
+  .big:hover { filter: brightness(1.06); }
+  .big:active { transform: translateY(6px); box-shadow: 0 2px 0 #3b1d9e, 0 6px 12px rgba(112, 72, 232, .3); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  footer { text-align: center; color: var(--ink-soft); font-weight: 700; font-size: .95rem; }
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 140%);
+    background: var(--ink); color: #fff; font-weight: 800; padding: 12px 20px; border-radius: 999px;
+    transition: transform .3s; z-index: 10; max-width: 92vw; text-align: center;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+
+  /* players dialog */
+  dialog {
+    border: 5px solid var(--ink); border-radius: var(--radius); padding: 22px; max-width: 460px; width: 92vw;
+    color: var(--ink); font-family: inherit; background: var(--paper);
+  }
+  dialog::backdrop { background: rgba(43, 42, 76, .55); }
+  dialog h2 { margin: 0 0 6px; }
+  dialog p { margin: 0 0 14px; color: var(--ink-soft); font-weight: 700; }
+  .add { display: flex; gap: 8px; margin-bottom: 14px; }
+  .add input {
+    flex: 1; min-width: 0; font: inherit; font-weight: 700; font-size: 1.1rem;
+    border: 3px solid var(--ink); border-radius: 16px; padding: 10px 14px; min-height: 48px;
+  }
+  .people { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; min-height: 40px; }
+  .person {
+    display: inline-flex; align-items: center; gap: 6px; background: #fff3bf; border: 3px solid #f59f00;
+    border-radius: 999px; padding: 4px 6px 4px 14px; font-weight: 800;
+  }
+  .person button {
+    font: inherit; font-weight: 900; border: 0; background: #fff; color: var(--ink);
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  }
+
+  @keyframes pop { 0% { transform: scale(.88) rotate(-1.5deg); opacity: .4; } 100% { transform: none; opacity: 1; } }
+  @keyframes wiggle { 0%, 88%, 100% { transform: rotate(0); } 92% { transform: rotate(-12deg); } 96% { transform: rotate(10deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 520px) {
+    .app { padding: 12px 12px 32px; }
+    .card { padding: 18px 12px 22px; min-height: 280px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1><span>🫙</span> Wonder Jar</h1>
+    <div class="tools">
+      <button class="pill" id="playersBtn" type="button">👨‍👩‍👧‍👦 Players</button>
+      <button class="pill" id="autoBtn" type="button" aria-pressed="false">🔊 Read to me</button>
+    </div>
+  </header>
+
+  <details class="opts" id="opts">
+    <summary><span>🎛 Pick questions</span> <small id="optsSummary"></small></summary>
+    <section aria-label="Pick question types">
+      <p class="group-label">What kind of questions?</p>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section aria-label="Pick how big the kids are">
+      <p class="group-label">Who is playing?</p>
+      <div class="seg" id="levels" role="group">
+        <button type="button" data-level="little" aria-pressed="false">🐣 Little kids (3–6)</button>
+        <button type="button" data-level="big" aria-pressed="false">🚀 Big kids (7–10)</button>
+        <button type="button" data-level="all" aria-pressed="true">🌈 Everyone</button>
+      </div>
+    </section>
+  </details>
+
+  <main class="stage">
+    <article class="card" id="card" style="--c:#845ef7">
+      <div class="badge" id="badge"><span class="emo">🫙</span><span id="badgeText">Wonder Jar</span></div>
+      <div class="turn" id="turn" aria-live="polite"></div>
+      <h2 class="question" id="question" aria-live="polite">Press the big button to pull a question out of the jar!</h2>
+      <div class="answer-wrap">
+        <button class="ghost" id="peekBtn" type="button" hidden>👀 Grown-up answer</button>
+        <div class="answer" id="answer" hidden></div>
+      </div>
+      <p class="hint" id="hint">Tip: tap any word to hear it.</p>
+    </article>
+
+    <div class="actions">
+      <button class="big" id="nextBtn" type="button">✨ New Question</button>
+      <div class="row">
+        <button class="pill" id="listenBtn" type="button">🔊 Listen</button>
+        <button class="pill" id="backBtn" type="button" disabled>⬅ Back</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>There are no right or wrong answers. Just think, talk and have fun! 💛</footer>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<dialog id="playersDlg">
+  <h2>Who is playing?</h2>
+  <p>Add names and the game will say whose turn it is. This is optional.</p>
+  <form class="add" id="addForm">
+    <input id="nameInput" type="text" maxlength="20" placeholder="Type a name" autocomplete="off" aria-label="Player name">
+    <button class="pill" type="submit">Add</button>
+  </form>
+  <div class="people" id="people"></div>
+  <div class="row">
+    <button class="pill" id="clearPlayers" type="button">Clear all</button>
+    <button class="pill" id="closeDlg" type="button">Done ✓</button>
+  </div>
+</dialog>
+
+<script>
+/* Question format: [text, level, optional grown-up answer]
+   level: 0 = any age, 1 = little kids (3-6), 2 = big kids (7-10) */
+const CATS = [
+  { id: "feelings", name: "Feelings", emoji: "💛", color: "#f06595", qs: [
+    ["What makes you feel happy?", 0],
+    ["What makes you feel brave?", 0],
+    ["What do you do when you feel sad?", 0],
+    ["What makes you laugh the most?", 0],
+    ["When did you feel proud of yourself?", 0],
+    ["What helps you feel calm?", 0],
+    ["What makes you feel excited?", 0],
+    ["Who makes you feel safe? Why?", 0],
+    ["What do you do when you feel mad?", 0],
+    ["What is a kind thing someone did for you?", 0],
+    ["What is a kind thing you did for someone?", 0],
+    ["What makes you feel shy?", 0],
+    ["If happy was a color, what color would it be?", 1],
+    ["What helps you when you feel scared?", 0],
+    ["How can you cheer up a friend who is sad?", 0],
+    ["What is the best part of your day?", 0],
+    ["What makes you feel loved?", 0],
+    ["What are you thankful for today?", 0],
+    ["What is hard to wait for?", 1],
+    ["What is something new you want to try, even if it feels a little scary?", 2],
+    ["What is one thing you are really good at?", 0],
+    ["How do you feel when you help someone?", 0],
+    ["What is something you wish people knew about you?", 2],
+    ["What does your body feel like when you are nervous?", 2],
+    ["What is the silliest thing that makes you giggle?", 1]
+  ]},
+  { id: "memories", name: "Memories", emoji: "🎂", color: "#ff922b", qs: [
+    ["What is your favorite birthday memory?", 0],
+    ["What is the best trip you ever took?", 0],
+    ["What is your favorite thing we do as a family?", 0],
+    ["What is the funniest thing that ever happened to you?", 0],
+    ["What is the first thing you remember?", 2],
+    ["What was your favorite day this year?", 0],
+    ["What is your favorite holiday? Why?", 0],
+    ["What is the yummiest meal you ever ate?", 0],
+    ["Who is your best friend? What do you like to do together?", 0],
+    ["Which toy did you love the most when you were little?", 0],
+    ["What is your favorite bedtime story?", 1],
+    ["What is the best present you ever got?", 0],
+    ["Tell about a time you tried something new.", 0],
+    ["What was your first day of school like?", 0],
+    ["Tell about a time you were very surprised.", 0],
+    ["What is your favorite place to visit?", 0],
+    ["Who in our family tells the best stories?", 0],
+    ["What is your favorite family photo? Why?", 0],
+    ["What song reminds you of a fun time?", 0],
+    ["What is the best thing that happened to you this week?", 0],
+    ["Tell about a fun day at the beach, park or snow.", 1],
+    ["When did you laugh so hard your tummy hurt?", 0],
+    ["What is a favorite thing a grown-up did with you?", 0],
+    ["What is something you could not do before, but can do now?", 2]
+  ]},
+  { id: "math", name: "Math Fun", emoji: "🔢", color: "#339af0", qs: [
+    ["How many fingers are on two hands?", 1, "10 fingers!"],
+    ["Count to 10 in a silly voice!", 1],
+    ["You have 2 apples. A friend gives you 1 more. How many apples do you have?", 1, "3 apples"],
+    ["How many legs does a dog have?", 1, "4 legs"],
+    ["What number comes after 5?", 1, "6"],
+    ["Can you find 3 round things in the room?", 1],
+    ["How many wheels are on 2 bikes?", 1, "4 wheels"],
+    ["4 birds sit in a tree. 1 flies away. How many are left?", 1, "3 birds"],
+    ["Which is more: 3 cookies or 5 cookies?", 1, "5 cookies"],
+    ["Count backwards from 5!", 1, "5, 4, 3, 2, 1, blast off!"],
+    ["How many ears do you and I have together?", 1, "4 ears"],
+    ["What shape is a slice of pizza?", 1, "A triangle"],
+    ["Clap 5 times. Then clap 3 more. How many claps in all?", 1, "8 claps"],
+    ["A pizza has 8 slices. You eat 3. How many slices are left?", 2, "5 slices"],
+    ["What is 10 + 7?", 2, "17"],
+    ["Count by 2s all the way to 20!", 2, "2, 4, 6, 8, 10, 12, 14, 16, 18, 20"],
+    ["Count by 5s all the way to 50!", 2, "5, 10, 15, 20, 25, 30, 35, 40, 45, 50"],
+    ["A spider has 8 legs. How many legs do 2 spiders have?", 2, "16 legs"],
+    ["You have 20 stickers and give 5 to a friend. How many do you have now?", 2, "15 stickers"],
+    ["What is half of 10?", 2, "5"],
+    ["What is double 6?", 2, "12"],
+    ["There are 7 days in a week. How many days are in 2 weeks?", 2, "14 days"],
+    ["What is 3 + 3 + 3?", 2, "9"],
+    ["A cookie costs 2 coins. How many coins do you need for 4 cookies?", 2, "8 coins"],
+    ["How many months are in a year? Can you say them?", 2, "12 months"],
+    ["How many sides does a square have?", 1, "4 sides"],
+    ["What is the biggest number you can think of?", 0]
+  ]},
+  { id: "life", name: "Big Thoughts", emoji: "🌍", color: "#845ef7", qs: [
+    ["What does being kind mean to you?", 0],
+    ["What would you do if someone was sitting alone at lunch?", 0],
+    ["What makes a good friend?", 0],
+    ["Why is it nice to say thank you?", 0],
+    ["What is one way you can help our family?", 0],
+    ["What does being brave mean?", 0],
+    ["What would you do if you found a toy at the park?", 0],
+    ["Why is it good to tell the truth?", 0],
+    ["How can we take care of the Earth?", 0],
+    ["What does it mean to share?", 1],
+    ["What do you want to be when you grow up? Why?", 0],
+    ["If you could make one rule for the whole world, what would it be?", 2],
+    ["What is something hard that you learned to do?", 0],
+    ["When is it hard to say sorry?", 2],
+    ["Why do we need to sleep?", 1],
+    ["What makes a family?", 0],
+    ["How can you make someone smile today?", 0],
+    ["Which is more important: being funny or being kind? Why?", 2],
+    ["What is one thing you would change about the world?", 2],
+    ["What does it mean to be a good listener?", 0],
+    ["What did you learn today?", 0],
+    ["What is a mistake that taught you something?", 2],
+    ["If you had a magic wand to help people, what would you do?", 0],
+    ["Who do you look up to? Why?", 0],
+    ["What does it mean to be a good helper?", 1]
+  ]},
+  { id: "trivia", name: "Trivia", emoji: "🧠", color: "#20c997", qs: [
+    ["What sound does a cow make?", 1, "Moo!"],
+    ["What color do you get when you mix blue and yellow?", 1, "Green"],
+    ["Which animal is called the king of the jungle?", 1, "The lion"],
+    ["What do bees make?", 1, "Honey"],
+    ["What do plants need to grow?", 1, "Water, sunlight and soil"],
+    ["Which animal has a long trunk?", 1, "An elephant"],
+    ["Can you name the colors of the rainbow?", 1, "Red, orange, yellow, green, blue, indigo, violet"],
+    ["Which bright star shines in our sky during the day?", 1, "The Sun"],
+    ["Do fish live in water or on land?", 1, "In water"],
+    ["What planet do we live on?", 1, "Earth"],
+    ["Is a tomato a fruit or a vegetable?", 2, "A fruit! It has seeds inside."],
+    ["How many planets are in our solar system?", 2, "8 planets"],
+    ["What is the biggest animal in the ocean?", 2, "The blue whale"],
+    ["What is the tallest animal in the world?", 2, "The giraffe"],
+    ["What is a baby frog called?", 2, "A tadpole"],
+    ["How many continents are there?", 2, "7 continents"],
+    ["What is the fastest land animal?", 2, "The cheetah"],
+    ["What do we breathe in to stay alive?", 2, "Oxygen (from the air)"],
+    ["What is the biggest planet?", 2, "Jupiter"],
+    ["What does a caterpillar turn into?", 2, "A butterfly"],
+    ["What season comes after winter?", 1, "Spring"],
+    ["What is frozen water called?", 1, "Ice"],
+    ["What is a baby kangaroo called?", 2, "A joey"],
+    ["How many hearts does an octopus have?", 2, "Three!"],
+    ["What did people use for light before light bulbs?", 2, "Candles and fire lamps"],
+    ["What is the biggest ocean on Earth?", 2, "The Pacific Ocean"]
+  ]},
+  { id: "movies", name: "Movies & Stories", emoji: "🏰", color: "#fa5252", qs: [
+    ["Which movie is your favorite? Why?", 0],
+    ["Who is your favorite movie character? Why?", 0],
+    ["If you could jump into any movie, which one would you pick?", 0],
+    ["What is your favorite song from a movie? Sing a little!", 0],
+    ["In The Lion King, who are Simba's two best friends?", 2, "Timon and Pumbaa"],
+    ["In Toy Story, what are the names of the cowboy and the space ranger?", 2, "Woody and Buzz Lightyear"],
+    ["In Finding Nemo, what kind of fish is Nemo?", 2, "A clownfish"],
+    ["In Frozen, what is the snowman called?", 1, "Olaf"],
+    ["What is the little mermaid's name?", 1, "Ariel"],
+    ["In Moana, who is the big hero with the magic fish hook?", 2, "Maui"],
+    ["In Cinderella, what does the fairy godmother turn into a coach?", 2, "A pumpkin"],
+    ["What does Aladdin ride on?", 1, "A magic carpet"],
+    ["Who has super long, magic hair in Tangled?", 1, "Rapunzel"],
+    ["In Cars, what is the name of the red race car?", 1, "Lightning McQueen"],
+    ["In Encanto, what is the name of the girl who looks for her place in the family?", 2, "Mirabel"],
+    ["In Inside Out, can you name some of the feelings in Riley's head?", 2, "Joy, Sadness, Anger, Fear and Disgust"],
+    ["In Up, what lifts the house into the sky?", 1, "Balloons"],
+    ["What does Winnie the Pooh love to eat?", 1, "Honey"],
+    ["If you had ice powers like Elsa, what would you make?", 0],
+    ["Which movie character would be your best friend?", 0],
+    ["What movie animal would you like as a pet?", 0],
+    ["If you found a magic lamp, what 3 wishes would you ask for?", 0],
+    ["Make the sound of a movie character. Can we guess who it is?", 0],
+    ["What does Belle love to do in Beauty and the Beast?", 2, "Read books!"],
+    ["Make up a new movie. What is it called and who is in it?", 0]
+  ]},
+  { id: "imagine", name: "Imagine That!", emoji: "🎨", color: "#fcc419", light: true, qs: [
+    ["If you could have any superpower, what would it be?", 0],
+    ["Would you rather fly like a bird or swim like a fish?", 0],
+    ["If you had a pet dragon, what would you name it?", 0],
+    ["What would you do if you were invisible for one day?", 0],
+    ["If you could talk to animals, which animal would you talk to first?", 0],
+    ["Would you rather live in a treehouse or a castle?", 0],
+    ["If you could invent a new ice cream flavor, what would it be?", 0],
+    ["What would you do if the whole world turned upside down?", 2],
+    ["If you went to space, what would you do first?", 0],
+    ["Build a silly animal! What parts does it have?", 0],
+    ["If you could be any animal for a day, which would you be?", 0],
+    ["If it rained candy, what kind would you want?", 1],
+    ["What would a robot helper do for you?", 0],
+    ["If you could shrink small like an ant, where would you go?", 0],
+    ["Would you rather have a pet elephant or a pet monkey?", 1],
+    ["If you had a time machine, would you go to the past or the future?", 2],
+    ["Make up a name for a new planet. Who lives there?", 0],
+    ["If your toys came alive at night, what would they do?", 0],
+    ["Tell a story that starts with: Once upon a time, there was a purple cow...", 0],
+    ["If you could paint the sky any color, which color would you pick?", 0],
+    ["If you had a secret door in your room, where would it go?", 0],
+    ["What would your dream treehouse look like?", 0],
+    ["If you could swap places with a grown-up for a day, what would you do?", 0],
+    ["What would you invent to make the world a better place?", 2]
+  ]},
+  { id: "nature", name: "Animals & Nature", emoji: "🐾", color: "#82c91e", qs: [
+    ["What is your favorite animal? Why?", 0],
+    ["What sound does your favorite animal make? Show us!", 1],
+    ["If you could have any pet, what would it be and what would you name it?", 0],
+    ["What do you think animals dream about?", 0],
+    ["What is your favorite thing to see outside?", 0],
+    ["What is your favorite season? Why?", 0],
+    ["Why do you think birds sing?", 0],
+    ["What is the smallest animal you can think of?", 1],
+    ["What would you do if you found a snail on the sidewalk?", 0],
+    ["If trees could talk, what would they say?", 0],
+    ["What do you think lives at the bottom of the ocean?", 0],
+    ["What is your favorite flower or tree?", 1],
+    ["What would you do on a day at the zoo?", 1],
+    ["What do you think the moon is made of?", 0],
+    ["Where do you think rain comes from?", 0],
+    ["What is the loudest animal you know?", 1],
+    ["Which animal would be the best at hide and seek?", 0],
+    ["What is the strangest animal you have ever seen?", 0],
+    ["If you could name a new star, what would you call it?", 0],
+    ["What do you like to do outside?", 1],
+    ["Why do you think leaves change color in the fall?", 2],
+    ["Which animal is the best at jumping? Can you jump like it?", 1],
+    ["How can we be kind to animals?", 0],
+    ["What would you pack for a trip into the forest?", 2]
+  ]},
+  { id: "silly", name: "Silly Challenges", emoji: "🤪", color: "#15aabf", qs: [
+    ["Make your funniest face and hold it for 5 seconds!", 0],
+    ["Dance like a chicken!", 0],
+    ["Sing your favorite song in a squeaky mouse voice!", 0],
+    ["Tell a joke. Can you make everyone laugh?", 0],
+    ["Stand on one foot and count to 10!", 1],
+    ["Talk like a robot for 30 seconds!", 0],
+    ["Act like an animal. Can we guess which one?", 0],
+    ["Say this 3 times fast: She sells seashells by the seashore.", 2],
+    ["Give someone in the family a big hug!", 0],
+    ["Say something nice about the person on your left.", 0],
+    ["Pretend you are a superhero. Show us your power!", 0],
+    ["Do 5 jumping jacks!", 0],
+    ["Make up a silly dance and teach it to us!", 0],
+    ["Draw a picture in the air with your finger. Can we guess it?", 0],
+    ["Hop like a frog around the room!", 1],
+    ["Move like a sleepy sloth for 10 seconds.", 1],
+    ["Hum a song. Can the family guess it?", 0],
+    ["Make the sound of a spaceship!", 1],
+    ["Walk like a penguin!", 1],
+    ["Show us your best surprised face!", 1],
+    ["Name 3 yellow things before we count to 10!", 0],
+    ["Pretend to eat spaghetti with no hands!", 0],
+    ["Tell us a knock-knock joke!", 2],
+    ["Say the ABCs backwards, or as far as you can!", 2],
+    ["Tiptoe like a ninja across the room!", 1]
+  ]}
+];
+
+const ALL = [];
+CATS.forEach(c => c.qs.forEach(([text, lvl, ans]) => ALL.push({ id: ALL.length, cat: c.id, text, lvl, ans })));
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+
+const $ = s => document.querySelector(s);
+const STORE = "wonder-jar-v1";
+const state = { cats: [], level: "all", players: [], turn: 0, auto: false };
+try { Object.assign(state, JSON.parse(localStorage.getItem(STORE) || "{}")); } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+
+const seen = new Set();
+const history = [];
+let current = null;
+let words = [];
+const canSpeak = "speechSynthesis" in window;
+
+/* ---------- controls ---------- */
+function buildChips() {
+  const box = $("#chips");
+  box.textContent = "";
+  const mk = (id, label, color, light) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip" + (light ? " light" : "");
+    b.style.setProperty("--cc", color); b.dataset.id = id; b.textContent = label;
+    box.appendChild(b); return b;
+  };
+  mk("all", "🎲 All mixed up", "#7048e8");
+  CATS.forEach(c => mk(c.id, c.emoji + " " + c.name, c.color, c.light));
+  paintChips();
+}
+function paintChips() {
+  document.querySelectorAll(".chip").forEach(b => {
+    const on = b.dataset.id === "all" ? state.cats.length === 0 : state.cats.includes(b.dataset.id);
+    b.setAttribute("aria-pressed", on);
+  });
+  document.querySelectorAll("#levels button").forEach(b => b.setAttribute("aria-pressed", b.dataset.level === state.level));
+  const lv = { little: "Little kids", big: "Big kids", all: "Everyone" }[state.level];
+  const kinds = state.cats.length ? state.cats.map(id => CAT[id].emoji).join(" ") : "🎲 All mixed up";
+  $("#optsSummary").textContent = kinds + " · " + lv;
+  $("#autoBtn").setAttribute("aria-pressed", state.auto);
+}
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  const id = b.dataset.id;
+  if (id === "all") state.cats = [];
+  else state.cats = state.cats.includes(id) ? state.cats.filter(x => x !== id) : [...state.cats, id];
+  save(); paintChips();
+});
+$("#levels").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.level = b.dataset.level; save(); paintChips();
+});
+$("#autoBtn").addEventListener("click", () => {
+  state.auto = !state.auto; save(); paintChips();
+  toast(state.auto ? "I will read each question out loud 🔊" : "Reading out loud is off");
+});
+
+/* ---------- picking a question ---------- */
+function pool() {
+  return ALL.filter(q =>
+    (!state.cats.length || state.cats.includes(q.cat)) &&
+    (state.level === "all" || q.lvl === 0 || (state.level === "little" ? q.lvl === 1 : q.lvl === 2)));
+}
+function pick() {
+  const p = pool();
+  let fresh = p.filter(q => !seen.has(q.id));
+  if (!fresh.length) {
+    p.forEach(q => seen.delete(q.id)); fresh = p;
+    toast("You saw every question here! Shuffling the jar again 🫙");
+  }
+  if (fresh.length > 1 && current) fresh = fresh.filter(q => q.id !== current.id);
+  return fresh[Math.floor(Math.random() * fresh.length)];
+}
+function nextQuestion() {
+  const q = pick(); if (!q) return;
+  let who = "";
+  if (state.players.length) { who = state.players[state.turn % state.players.length]; state.turn++; save(); }
+  if (current) history.push({ q: current, who: currentWho });
+  show(q, who);
+}
+function back() {
+  const prev = history.pop(); if (!prev) return;
+  if (state.players.length && state.turn > 0) { state.turn--; save(); }
+  show(prev.q, prev.who);
+}
+
+/* ---------- showing it ---------- */
+let currentWho = "";
+function show(q, who) {
+  stopSpeaking();
+  current = q; currentWho = who; seen.add(q.id);
+  const c = CAT[q.cat];
+  const card = $("#card");
+  card.style.setProperty("--c", c.color);
+  $("#badge").querySelector(".emo").textContent = c.emoji;
+  $("#badgeText").textContent = c.name;
+  $("#turn").textContent = who ? "🎉 " + who + ", it is your turn!" : "";
+  renderWords(q.text);
+  const peek = $("#peekBtn"), ans = $("#answer");
+  ans.hidden = true; ans.textContent = q.ans || "";
+  peek.hidden = !q.ans; peek.textContent = "👀 Grown-up answer";
+  $("#hint").textContent = "Tip: tap any word to hear it.";
+  $("#backBtn").disabled = history.length === 0;
+  card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
+  if (state.auto) speak(q.text);
+}
+function renderWords(text) {
+  const el = $("#question");
+  el.textContent = ""; words = [];
+  el.classList.toggle("small", text.length > 70);
+  let idx = 0;
+  text.split(" ").forEach((w, i, arr) => {
+    const s = document.createElement("span");
+    s.className = "w"; s.textContent = w; s.dataset.i = i;
+    words.push({ start: idx, end: idx + w.length, el: s, text: w });
+    idx += w.length + 1;
+    el.appendChild(s);
+    if (i < arr.length - 1) el.appendChild(document.createTextNode(" "));
+  });
+}
+$("#peekBtn").addEventListener("click", () => {
+  const a = $("#answer"); a.hidden = !a.hidden;
+  $("#peekBtn").textContent = a.hidden ? "👀 Grown-up answer" : "🙈 Hide answer";
+});
+
+/* ---------- reading aloud ---------- */
+let utter = null;
+function stopSpeaking() {
+  if (canSpeak) speechSynthesis.cancel();
+  document.querySelectorAll(".w.on").forEach(w => w.classList.remove("on"));
+}
+function speak(text, onlyWord) {
+  if (!canSpeak) return;
+  stopSpeaking();
+  utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.8; utter.pitch = 1.1; utter.lang = "en-US";
+  if (!onlyWord) {
+    utter.onboundary = e => {
+      if (e.name && e.name !== "word") return;
+      document.querySelectorAll(".w.on").forEach(w => w.classList.remove("on"));
+      const w = words.find(w => e.charIndex >= w.start && e.charIndex < w.end + 1);
+      if (w) w.el.classList.add("on");
+    };
+    utter.onend = utter.onerror = () => document.querySelectorAll(".w.on").forEach(w => w.classList.remove("on"));
+  }
+  speechSynthesis.speak(utter);
+}
+$("#question").addEventListener("click", e => {
+  const w = e.target.closest(".w"); if (!w || !current) return;
+  speak(w.textContent.replace(/[^\w'-]/g, ""), true);
+});
+$("#listenBtn").addEventListener("click", () => current ? speak(current.text) : toast("Pull a question first! ✨"));
+if (!canSpeak) { $("#listenBtn").hidden = true; $("#autoBtn").hidden = true; $("#hint").hidden = true; }
+
+/* ---------- players ---------- */
+const dlg = $("#playersDlg");
+function paintPeople() {
+  const box = $("#people"); box.textContent = "";
+  state.players.forEach((n, i) => {
+    const d = document.createElement("span"); d.className = "person"; d.textContent = n;
+    const x = document.createElement("button"); x.type = "button"; x.textContent = "✕";
+    x.setAttribute("aria-label", "Remove " + n);
+    x.onclick = () => { state.players.splice(i, 1); state.turn = 0; save(); paintPeople(); };
+    d.appendChild(x); box.appendChild(d);
+  });
+}
+$("#playersBtn").addEventListener("click", () => { paintPeople(); dlg.showModal(); $("#nameInput").focus(); });
+$("#closeDlg").addEventListener("click", () => dlg.close());
+$("#clearPlayers").addEventListener("click", () => { state.players = []; state.turn = 0; save(); paintPeople(); });
+$("#addForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("#nameInput").value.trim();
+  if (v && state.players.length < 10) { state.players.push(v); save(); paintPeople(); }
+  $("#nameInput").value = ""; $("#nameInput").focus();
+});
+
+/* ---------- misc ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+$("#nextBtn").addEventListener("click", nextQuestion);
+$("#backBtn").addEventListener("click", back);
+document.addEventListener("keydown", e => {
+  if (e.target === document.body && (e.key === " " || e.key === "Enter")) { e.preventDefault(); nextQuestion(); }
+});
+
+buildChips();
+</script>
+</body>
+</html>
