@@ -59,6 +59,7 @@
   .opts summary { cursor: pointer; font-weight: 900; font-size: 1.1rem; padding: 10px 0; min-height: 44px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .opts summary small { font-weight: 700; color: var(--ink-soft); font-size: .95rem; }
   .opts section + section { margin-top: 14px; }
+  #voiceSel { font: inherit; font-weight: 700; font-size: 1rem; border: 3px solid var(--ink); border-radius: 16px; padding: 8px 12px; min-height: 44px; max-width: 100%; background: var(--paper); color: var(--ink); }
   .group-label { font-weight: 800; font-size: .9rem; color: var(--ink-soft); margin: 0 0 6px 4px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
@@ -208,6 +209,10 @@
         <button type="button" data-level="big" aria-pressed="false">🚀 Big kids (7–10)</button>
         <button type="button" data-level="all" aria-pressed="true">🌈 Everyone</button>
       </div>
+    </section>
+    <section aria-label="Pick a reading voice" id="voiceBox">
+      <p class="group-label">Reading voice</p>
+      <select id="voiceSel" aria-label="Reading voice"></select>
     </section>
   </details>
 
@@ -635,7 +640,9 @@ function speak(text, onlyWord) {
   if (!canSpeak) return;
   stopSpeaking();
   utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.8; utter.pitch = 1.1; utter.lang = "en-US";
+  const v = chosenVoice();
+  if (v) { utter.voice = v; utter.lang = v.lang; } else utter.lang = "en-US";
+  utter.rate = 0.9; utter.pitch = 1;
   if (!onlyWord) {
     utter.onboundary = e => {
       if (e.name && e.name !== "word") return;
@@ -652,7 +659,37 @@ $("#question").addEventListener("click", e => {
   speak(w.textContent.replace(/[^\w'-]/g, ""), true);
 });
 $("#listenBtn").addEventListener("click", () => current ? speak(current.text) : toast("Pull a question first! ✨"));
-if (!canSpeak) { $("#listenBtn").hidden = true; $("#autoBtn").hidden = true; $("#hint").hidden = true; }
+if (!canSpeak) { $("#listenBtn").hidden = true; $("#autoBtn").hidden = true; $("#hint").hidden = true; $("#voiceBox").hidden = true; }
+
+/* Prefer the most natural-sounding English voice the device has */
+let voices = [];
+function voiceScore(v) {
+  let s = 0;
+  if (/natural|neural|online/i.test(v.name)) s += 60;
+  if (/premium|enhanced|siri/i.test(v.name)) s += 50;
+  if (/^google (us|uk)/i.test(v.name)) s += 40;
+  if (/samantha|ava|allison|zoe|jenny|aria|emma|serena|karen|daniel/i.test(v.name)) s += 20;
+  if (/^en-US/i.test(v.lang)) s += 5;
+  if (/espeak|compact/i.test(v.name)) s -= 30;
+  return s;
+}
+function loadVoices() {
+  voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)).sort((a, b) => voiceScore(b) - voiceScore(a));
+  const sel = $("#voiceSel");
+  sel.textContent = "";
+  sel.add(new Option("Best voice (automatic)", ""));
+  voices.forEach(v => sel.add(new Option(v.name + " (" + v.lang + ")", v.name)));
+  sel.value = voices.some(v => v.name === state.voice) ? state.voice : "";
+}
+function chosenVoice() { return voices.find(v => v.name === state.voice) || voices[0] || null; }
+if (canSpeak) {
+  loadVoices();
+  speechSynthesis.addEventListener("voiceschanged", loadVoices);
+  $("#voiceSel").addEventListener("change", e => {
+    state.voice = e.target.value; save();
+    speak("Hi! Let's play a game.", true);
+  });
+}
 
 /* ---------- players ---------- */
 const dlg = $("#playersDlg");
